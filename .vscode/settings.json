@@ -69,6 +69,12 @@
         "mutex": "cpp",
         "condition_variable": "cpp",
         "*.ipp": "cpp",
-        "future": "cpp"
+        "future": "cpp",
+        "csetjmp": "cpp",
+        "codecvt": "cpp",
+        "forward_list": "cpp",
+        "scoped_allocator": "cpp",
+        "regex": "cpp",
+        "valarray": "cpp"
     }
 }

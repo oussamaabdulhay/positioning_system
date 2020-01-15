@@ -185,3 +185,4 @@ Quaternion OptiTrack::getQuaternionfromEuler(Vector3D<float> euler){
     
     return _quat;
 }
+

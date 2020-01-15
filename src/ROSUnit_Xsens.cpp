@@ -33,6 +33,7 @@ void ROSUnit_Xsens::callbackXsensPosition(const geometry_msgs::Vector3Stamped& m
 }
 void ROSUnit_Xsens::callbackXsensAttitude( const geometry_msgs::QuaternionStamped& msg_attitude){
     Quaternion att_data;
+    // cout<<"ROSUnit"<<endl;
     att_data.x = msg_attitude.quaternion.x;
     att_data.y = msg_attitude.quaternion.y;
     att_data.z = msg_attitude.quaternion.z;
@@ -62,6 +63,7 @@ void ROSUnit_Xsens::callbackXsensAttitude( const geometry_msgs::QuaternionStampe
     attitude_msg.pitch=_euler.x;
     attitude_msg.roll=_euler.y;
     heading_msg.yaw=_euler.z;
+    // cout << _euler.x<< endl;
     _instance_ptr->emit_message((DataMessage*) &attitude_msg);    
     _instance_ptr->emit_message((DataMessage*) &heading_msg); 
 }
