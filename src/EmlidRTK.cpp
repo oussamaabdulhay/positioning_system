@@ -6,18 +6,18 @@ EmlidRTK::EmlidRTK(){
 
 EmlidRTK::~EmlidRTK(){}
 
-float EmlidRTK::MeasureGPStoMeters(float lat1,float lon1,float lat2,float lon2)
-{  
-    float R    = 6378.137; // Radius of earth in km
-    float dLat = lat2*(PI/180) - lat1*(PI/180);
-    float dLon = lon2*(PI/180) - lon1*(PI/180);
-    float a    = sin(dLat/2)*sin(dLat/2) + cos(lat1*PI/180)*cos(lat2*PI/180)*sin(dLon/2)*sin(dLon/2);
-    float c    = 2 * atan2(sqrt(a), sqrt(1-a));
-    float d    = R * c;
-    return d*1000; // meters
-}
+// float EmlidRTK::MeasureGPStoMeters(float lat1,float lon1,float lat2,float lon2)
+// {  
+//     float R    = 6378.137; // Radius of earth in km
+//     float dLat = lat2*(PI/180) - lat1*(PI/180);
+//     float dLon = lon2*(PI/180) - lon1*(PI/180);
+//     float a    = sin(dLat/2)*sin(dLat/2) + cos(lat1*PI/180)*cos(lat2*PI/180)*sin(dLon/2)*sin(dLon/2);
+//     float c    = 2 * atan2(sqrt(a), sqrt(1-a));
+//     float d    = R * c;
+//     return d*1000; // meters
+// }
 
-Vector3D<double> EmlidRTK::Convert_to_xyz(){
+PositionMsg EmlidRTK::Convert_to_xyz(){
     
     ///////////////////////////First Method/////////////////////////////////////////////
 
@@ -52,21 +52,21 @@ Vector3D<double> EmlidRTK::Convert_to_xyz(){
     ///////////////////////////First Method/////////////////////////////////////////////
 
     ///////////////////////////Second Method/////////////////////////////////////////////
-       int R=6371000;
+       double R=6371000.;
         //First point
-       cartesian_position1.x = R * cos(_bodyPos1.x) * cos(_bodyPos1.y);
-       cartesian_position1.y = R * cos(_bodyPos1.x) * sin(_bodyPos1.y);
-       cartesian_position1.z = R *sin(_bodyPos1.x);
+       cartesian_position1.x = R * cos((_bodyPos1.x)* PI/180.) * cos((_bodyPos1.y)* PI/180.);
+       cartesian_position1.y = R * cos((_bodyPos1.x)* PI/180.) * sin((_bodyPos1.y)* PI/180.);
+       cartesian_position1.z = R *sin((_bodyPos1.x)* PI/180.);
     //    cout <<"cartesian_position1.x=" << cartesian_position1.x<<"\n";
     //    cout <<"cartesian_position1.y=" << cartesian_position1.y<<"\n";
     //    cout <<"cartesian_position1.z=" << cartesian_position1.z<<"\n";
        //Second Point
-       cartesian_position2.x = R * cos(_bodyPos2.x) * cos(_bodyPos2.y);
-       cartesian_position2.y = R * cos(_bodyPos2.x) * sin(_bodyPos2.y);
-       cartesian_position2.z = R * sin(_bodyPos2.x);
-       cout <<"cartesian_position2.x=" << cartesian_position2.x<<"\n";
-       cout <<"cartesian_position2.y=" << cartesian_position2.y<<"\n";
-       cout <<"cartesian_position2.z=" << cartesian_position2.z<<"\n"; 
+       cartesian_position2.x = R * cos((_bodyPos2.x)* PI/180.) * cos((_bodyPos2.y)* PI/180.);
+       cartesian_position2.y = R * cos((_bodyPos2.x)* PI/180.) * sin((_bodyPos2.y)* PI/180.);
+       cartesian_position2.z = R * sin((_bodyPos2.x)* PI/180.);
+    //    cout <<"cartesian_position2.x=" << cartesian_position2.x<<"\n";
+    //    cout <<"cartesian_position2.y=" << cartesian_position2.y<<"\n";
+    //    cout <<"cartesian_position2.z=" << cartesian_position2.z<<"\n"; 
 
     ///////////////////////////third Method/////////////////////////////////////////////
     // Vector3D<float> calib_point1, calib_point2;
@@ -127,16 +127,28 @@ Vector3D<double> EmlidRTK::Convert_to_xyz(){
        
 }
 
-double EmlidRTK::getHeading(){
+VelocityMsg EmlidRTK::AverageVel(){
     
-    double heading = Calculate_Heading();
-        // cout <<_upc
-        return heading;
+    Average_vel.dx=(_bodyVel1.x+_bodyVel2.x)/2;
+    Average_vel.dy=(_bodyVel1.y+_bodyVel2.y)/2;
+    Average_vel.dz=(_bodyVel1.z+_bodyVel2.z)/2;
+    
+    this->emit_message((DataMessage*) & Average_vel);
+    return Average_vel;
 }
 
-double EmlidRTK::Calculate_Heading(){
+
+HeadingMsg EmlidRTK::getHeading(){
     
-    double result = atan2 (_diff.x,_diff.y) * 180 / PI;
+    HeadingMsg heading = Calculate_Heading();
+    return heading;
+}
+
+HeadingMsg EmlidRTK::Calculate_Heading(){
+    
+    HeadingMsg result;
+    Vector3D<double> diff_dual_rtk=cartesian_position2-cartesian_position1;
+    result.yaw= atan2(diff_dual_rtk.x,diff_dual_rtk.y) * 180. / PI;
     //double result = atan2 (_updated_position.x,_updated_position.y) * 180 / PI;
     // cout <<"result is =" <<_updated_position.y <<"\n";
     // cout <<"result is =" <<_updated_position.x <<"\n";
@@ -145,7 +157,7 @@ double EmlidRTK::Calculate_Heading(){
     return result;
 }
 
-Vector3D<double> EmlidRTK::Transformed(){
+PositionMsg EmlidRTK::Transformed(){
     cout <<"Attitude.x=" <<Attitude.x << "\n";
     cout <<"Attitude.y=" << Attitude.y<< "\n";
     cout <<"Attitude.z=" << Attitude.z<< "\n";    
@@ -155,33 +167,49 @@ Vector3D<double> EmlidRTK::Transformed(){
     V1.y=0;
     V1.z=antenna_height;
     Vector3D <double> matrix_transformed = rotation_matrix.TransformVector(V1);
-    Vector3D<double> final_position;
-    _average_position.x=(cartesian_position2.x+cartesian_position1.x)/2;
-    _average_position.y=(cartesian_position2.y+cartesian_position1.y)/2;
-    _average_position.z=(cartesian_position2.z+cartesian_position1.z)/2;
+    PositionMsg final_position;
+    cout<<"matrix_transformed in x =" <<matrix_transformed.x << "\n";
+    cout<<"matrix_transformed in y =" <<matrix_transformed.y << "\n";
+    cout<<"matrix_transformed in z =" <<matrix_transformed.z << "\n";
     final_position.x = _average_position.x + matrix_transformed.x ;
     final_position.y = _average_position.y + matrix_transformed.y ;
     final_position.z = _average_position.z + matrix_transformed.z ;
-    return final_position;        
+    // cout<<"_average_position in x =" <<_average_position.x << "\n";
+    // cout<<"_average_position in y =" <<_average_position.y << "\n";
+    // cout<<"_average_position in z =" <<_average_position.z << "\n";
+    this->emit_message((DataMessage*) & final_position);  
+    return final_position;
+         
 }
 
-Vector3D<double>EmlidRTK::getPosition(){
+PositionMsg EmlidRTK::getPosition(){
 
-Vector3D <double> difference= Center_pos();
-return difference;
+PositionMsg average= Center_pos();
+return average;
 }
 
-Vector3D <double> EmlidRTK::Center_pos(){
+PositionMsg EmlidRTK::getRTK1(){
+return _bodyPos1;
+}
+
+
+PositionMsg EmlidRTK::getRTK2(){
+return _bodyPos2;
+}
+
+Vector3D <double> EmlidRTK::getAttitude(){
+return Attitude;
+}
+
+
+PositionMsg EmlidRTK::Center_pos(){
     // _updated_position.x=(_bodyPos1.x-_bodyPos2.x);
     // _updated_position.y=(_bodyPos1.y-_bodyPos2.y);
     // _updated_position.z=(_bodyPos1.z-_bodyPos2.z) - antenna_height;
      Convert_to_xyz();
-    _diff.x=(cartesian_position2.x-cartesian_position1.x);
-    _diff.y=(cartesian_position2.y-cartesian_position1.y);
-    _diff.z=(cartesian_position2.z-cartesian_position1.z) - antenna_height;
-    _average_position.x=(cartesian_position2.x+cartesian_position1.x)/2;
-    _average_position.y=(cartesian_position2.y+cartesian_position1.y)/2;
-    _average_position.z=(cartesian_position2.z+cartesian_position1.z)/2;
+    _average_position.x=(cartesian_position2.x+cartesian_position1.x)/2.;
+    _average_position.y=(cartesian_position2.y+cartesian_position1.y)/2.;
+    _average_position.z=(cartesian_position2.z+cartesian_position1.z)/2.;
         // cout <<_updated_position.x << "inside the pos\n";
         // cout <<_updated_position.y<< "inside the pos\n";
         // cout <<_updated_position.z<< "inside the pos\n";
@@ -189,7 +217,6 @@ Vector3D <double> EmlidRTK::Center_pos(){
         // cout <<_bodyPos2.y<< "inside the function\n";
         // cout <<_bodyPos2.z<< "inside the function\n";
 
-    //return _diff;
     return _average_position;
 }
 
@@ -199,58 +226,44 @@ void EmlidRTK::receive_msg_data(DataMessage* t_msg){
         RTKMessagePosition* rtk_pos = (RTKMessagePosition*)t_msg;
         
         if (rtk_pos->id==1){
-            // cout << "position"<<"\n";
+            
         _bodyPos1.x = rtk_pos->position.x;
         _bodyPos1.y= rtk_pos->position.y;      
-        _bodyPos1.z= rtk_pos->position.z;
+        _bodyPos1.z= rtk_pos->position.z; 
         
-        // cout <<setprecision(12)<<_bodyPos1.x << "_bodyPos1.x\n";
-        // cout <<setprecision(12)<<_bodyPos1.y<< "_bodyPos1.y\n";
-        // cout <<setprecision(12)<<_bodyPos1.z<< "_bodyPos1.z\n";
         }
 
         if (rtk_pos->id==2){
         _bodyPos2.x = rtk_pos->position.x;
         _bodyPos2.y= rtk_pos->position.y;      
         _bodyPos2.z= rtk_pos->position.z; 
-        // cout <<setprecision(12)<<_bodyPos2.x <<"_bodyPos2.x\n";
-        // cout <<setprecision(12)<<_bodyPos2.y<< "_bodyPos2.y\n";
-        // cout <<setprecision(12)<<_bodyPos2.z<< "_bodyPos2.z\n";
         }
     }
     if(t_msg->getType() == msg_type::rtkvelocity){
         RTKMessageVelocity* rtk_vel = (RTKMessageVelocity*)t_msg;
         if (rtk_vel->id=1){
-        
+         
         _bodyVel1.x = rtk_vel->velocity.x;
         _bodyVel1.y= rtk_vel->velocity.y;      
-        _bodyVel1.z= rtk_vel->velocity.z; 
+        _bodyVel1.z= rtk_vel->velocity.z;
+        AverageVel(); 
         }
         
          if (rtk_vel->id=2){
         _bodyVel2.x = rtk_vel->velocity.x;
         _bodyVel2.y= rtk_vel->velocity.y;      
-        _bodyVel2.z= rtk_vel->velocity.z; 
-
-    }
+        _bodyVel2.z= rtk_vel->velocity.z;
+        AverageVel(); 
+        }
     }
     if(t_msg->getType() == msg_type::ATTITUDE){
         AttitudeMsg* attitude_msg = (AttitudeMsg*)t_msg;
-        // cout << "attitude"<<"\n";
-        {
-        
         Attitude.x =-attitude_msg->pitch;
         Attitude.y= -attitude_msg->roll;
-        Attitude.z=0;        
-        // cout <<Attitude.x << "Attitude in x\n" ;
-        // cout <<Attitude.y<<"Attitude in y\n";
-        // cout <<Attitude.z<<"Attitude in z\n";
-
-        }
 
     }
-        // cout <<_bodyPos1.x << "inside the function\n";
-        // cout <<_bodyPos1.y<< "inside the function\n";
-        // cout <<_bodyPos1.z<< "inside the function\n";
-
+    if(t_msg->getType() == msg_type::HEADING){
+    HeadingMsg* heading_msg = (HeadingMsg*)t_msg;
+        Attitude.z=-heading_msg->yaw;        
+    }
 }
